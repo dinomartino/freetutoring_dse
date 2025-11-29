@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Initialize R2 client
@@ -67,7 +67,7 @@ export async function getSignedR2Url(
   key: string,
   expiresIn: number = 3600
 ): Promise<string> {
-  const command = new PutObjectCommand({
+  const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
   });

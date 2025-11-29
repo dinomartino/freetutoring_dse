@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -24,35 +23,39 @@ function LoginForm() {
     setError("");
 
     try {
-
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Call the server-side login API to properly set cookies
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (signInError) {
-        setError("登入失敗：" + signInError.message);
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        setError("登入失敗：" + (data.error || '未知錯誤'));
         setIsLoading(false);
         return;
       }
 
-      // Check if user is admin
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profile?.role !== 'ADMIN') {
-        setError("您沒有管理員權限");
-        await supabase.auth.signOut();
+      // Redirect based on role
+      if (data.role === 'ADMIN') {
+        // Admin - redirect to admin panel
+        const adminPath = process.env.NEXT_PUBLIC_ADMIN_SECRET_PATH || 'admin';
+        window.location.href = `/${adminPath}`;
+      } else if (data.role === 'STUDENT') {
+        // Student - redirect to student dashboard
+        const redirectUrl = (redirect && redirect !== '/login' && redirect !== '/') ? redirect : '/dashboard/student';
+        window.location.href = redirectUrl;
+      } else if (data.role === 'TUTOR') {
+        // Tutor - redirect to tutor dashboard
+        const redirectUrl = (redirect && redirect !== '/login' && redirect !== '/') ? redirect : '/dashboard/tutor';
+        window.location.href = redirectUrl;
+      } else {
+        setError(`無法識別用戶角色: ${data.role || '(未定義)'}`);
         setIsLoading(false);
         return;
       }
-
-      // Success - redirect to admin panel or original destination
-      router.push(redirect);
-      router.refresh();
     } catch (error) {
       console.error('Login error:', error);
       setError("登入過程發生錯誤，請稍後重試");
@@ -64,9 +67,9 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">FreeTutor 管理員登入</CardTitle>
+          <CardTitle className="text-2xl text-center">FreeTutor 登入</CardTitle>
           <CardDescription className="text-center">
-            請使用管理員帳號登入
+            請使用你的帳號登入
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -76,7 +79,7 @@ function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@freetutor.com"
+                placeholder="your-email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

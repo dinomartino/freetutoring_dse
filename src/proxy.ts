@@ -3,9 +3,13 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 export async function proxy(request: NextRequest) {
   const adminPath = process.env.ADMIN_SECRET_PATH || 'admin';
+  const pathname = request.nextUrl.pathname;
 
-  // Check if accessing admin area
-  if (request.nextUrl.pathname.startsWith(`/${adminPath}`)) {
+  // Check if accessing protected routes
+  const isAdminRoute = pathname.startsWith(`/${adminPath}`) || pathname.startsWith('/api/admin');
+  const isDashboardRoute = pathname.startsWith('/dashboard');
+
+  if (isAdminRoute || isDashboardRoute) {
     let response = NextResponse.next({
       request: {
         headers: request.headers,
@@ -71,16 +75,46 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
-    // Check if user has ADMIN role
+    // Get user role
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (profile?.role !== 'ADMIN') {
-      // User is logged in but not admin -> redirect to home with error
-      return NextResponse.redirect(new URL('/?error=unauthorized', request.url));
+    const userRole = profile?.role;
+
+    // Protect admin routes - ONLY admins can access
+    if (isAdminRoute) {
+      if (userRole !== 'ADMIN') {
+        // Non-admin trying to access admin area -> redirect based on their role
+        if (userRole === 'STUDENT') {
+          return NextResponse.redirect(new URL('/dashboard/student', request.url));
+        } else if (userRole === 'TUTOR') {
+          return NextResponse.redirect(new URL('/dashboard/tutor', request.url));
+        } else {
+          return NextResponse.redirect(new URL('/?error=unauthorized', request.url));
+        }
+      }
+    }
+
+    // Protect dashboard routes - users can only access their own dashboard
+    if (isDashboardRoute) {
+      if (pathname.startsWith('/dashboard/student') && userRole !== 'STUDENT') {
+        // Non-student trying to access student dashboard
+        if (userRole === 'TUTOR') {
+          return NextResponse.redirect(new URL('/dashboard/tutor', request.url));
+        } else if (userRole === 'ADMIN') {
+          return NextResponse.redirect(new URL(`/${adminPath}`, request.url));
+        }
+      } else if (pathname.startsWith('/dashboard/tutor') && userRole !== 'TUTOR') {
+        // Non-tutor trying to access tutor dashboard
+        if (userRole === 'STUDENT') {
+          return NextResponse.redirect(new URL('/dashboard/student', request.url));
+        } else if (userRole === 'ADMIN') {
+          return NextResponse.redirect(new URL(`/${adminPath}`, request.url));
+        }
+      }
     }
 
     return response;

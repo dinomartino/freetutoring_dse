@@ -50,6 +50,28 @@ export default function AdminDashboard() {
   const [notes, setNotes] = useState('');
   const [activeTab, setActiveTab] = useState<'students' | 'tutors'>('students');
 
+  const handleViewDocument = async (documentUrl: string) => {
+    try {
+      // Request a signed URL from the backend
+      const response = await fetch('/api/documents/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentUrl }),
+      });
+
+      if (response.ok) {
+        const { signedUrl } = await response.json();
+        // Open the signed URL in a new tab
+        window.open(signedUrl, '_blank');
+      } else {
+        alert('無法載入文件');
+      }
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      alert('載入文件時發生錯誤');
+    }
+  };
+
   useEffect(() => {
     fetchVerifications();
   }, []);
@@ -176,15 +198,13 @@ export default function AdminDashboard() {
                     <p className="font-medium text-gray-700 mb-2">驗證文件</p>
                     <div className="space-y-2">
                       {student.verificationDocuments.map((doc, idx) => (
-                        <a
+                        <button
                           key={idx}
-                          href={doc}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-sm text-blue-600 hover:underline"
+                          onClick={() => handleViewDocument(doc)}
+                          className="block text-sm text-blue-600 hover:underline cursor-pointer text-left"
                         >
                           文件 {idx + 1}
-                        </a>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -292,15 +312,13 @@ export default function AdminDashboard() {
                     <p className="font-medium text-gray-700 mb-2">驗證文件</p>
                     <div className="space-y-2">
                       {tutor.verificationDocuments.map((doc, idx) => (
-                        <a
+                        <button
                           key={idx}
-                          href={doc}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-sm text-blue-600 hover:underline"
+                          onClick={() => handleViewDocument(doc)}
+                          className="block text-sm text-blue-600 hover:underline cursor-pointer text-left"
                         >
                           文件 {idx + 1}
-                        </a>
+                        </button>
                       ))}
                     </div>
                   </div>

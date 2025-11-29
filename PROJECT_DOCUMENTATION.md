@@ -161,11 +161,14 @@ FreeTutor is a web platform designed to connect students with special needs to v
 - [x] Cloudflare R2 object storage integration
 - [x] Organized subject selection (小學/中學/其他)
 
-### Phase 3: Admin Panel
-- [ ] Admin authentication
-- [ ] Document review interface
-- [ ] User approval/rejection workflow
-- [ ] User management dashboard
+### Phase 3: Admin Panel ✅ (Completed)
+- [x] Admin authentication with role-based access control
+- [x] Document review interface with inline document viewing
+- [x] User approval/rejection workflow with admin notes
+- [x] User management dashboard with student/tutor tabs
+- [x] Email notifications on approval/rejection
+- [x] Admin user creation script
+- [x] Secure admin path with middleware protection
 
 ### Phase 4: Tutor Discovery
 - [ ] Tutor listing page
@@ -180,7 +183,7 @@ FreeTutor is a web platform designed to connect students with special needs to v
 - [ ] Contact information sharing
 
 ### Phase 6: Enhancement & Polish
-- [ ] Email notifications
+- [x] Email notifications (Gmail integration with Nodemailer)
 - [ ] User dashboard improvements
 - [ ] Profile editing
 - [ ] Testing and bug fixes
@@ -361,6 +364,212 @@ Comprehensive support for Hong Kong open exams:
 - Created comprehensive `.env.example` for reference
 - Prisma config file for migration URLs
 
+### 2025-11-30 - Admin Panel & Email Notification System
+
+#### Admin Panel (Phase 3 Complete)
+- **Admin Authentication & Authorization**
+  - Created admin user creation script (`npm run create-admin`)
+  - Implemented role-based access control with middleware protection
+  - Secure admin path configuration via environment variables
+  - Server-side login API with proper cookie handling
+
+- **Document Review Interface**
+  - Admin dashboard with student/tutor verification tabs
+  - Real-time pending application counts
+  - Document viewing (opens in new tab)
+  - User information display (name, email, phone, subjects, exam results)
+  - Approval/rejection workflow with optional admin notes
+
+- **API Routes**
+  - `GET /api/admin/verifications` - Fetch pending verifications with filters
+  - `POST /api/admin/verify` - Approve or reject applications
+  - `POST /api/auth/login` - Server-side authentication
+  - `POST /api/auth/logout` - User logout
+
+- **UI Components**
+  - Interactive tabs for student/tutor applications
+  - Expandable review cards with all user details
+  - Notes input for rejection reasons
+  - Success/error notifications
+
+#### Email Notification System
+- **Gmail Integration via Nodemailer**
+  - Free email sending using personal Gmail account
+  - App password authentication (2-step verification required)
+  - Graceful fallback to console logging in development
+  - Environment variable configuration
+
+- **Email Templates**
+  - Beautiful HTML emails with gradient designs
+  - Mobile-responsive layout with inline CSS
+  - Traditional Chinese (zh-HK) content
+  - Four template types:
+    1. Student registration confirmation
+    2. Tutor registration confirmation
+    3. Application approval (with CTA buttons)
+    4. Application rejection (with admin notes)
+
+- **Email Triggers**
+  - Student registration → Confirmation email
+  - Tutor registration → Confirmation email
+  - Admin approves application → Approval email
+  - Admin rejects application → Rejection email with notes
+
+- **Email Library** (`src/lib/email.ts`)
+  - Reusable `sendEmail()` function
+  - Template generators for all scenarios
+  - Professional branding and styling
+  - Action buttons linking back to platform
+
+#### Technical Improvements
+- **Next.js 16 Compliance**
+  - Migrated from `middleware.ts` to `proxy.ts`
+  - Updated proxy function export
+  - Fixed Suspense boundaries for `useSearchParams`
+
+- **Prisma 7 Compatibility**
+  - Removed `url` from datasource (Prisma 7 requirement)
+  - Updated admin script with proper Prisma initialization
+  - PostgreSQL adapter configuration
+
+- **Authentication Flow**
+  - Server-side login API for proper cookie management
+  - Role-based redirects (admin → /admin, student/tutor → dashboard)
+  - Middleware verification with Supabase SSR
+
+#### Files Created
+- `src/app/admin/layout.tsx` - Admin panel layout
+- `src/app/admin/page.tsx` - Verification dashboard
+- `src/app/api/admin/verifications/route.ts` - Get verifications
+- `src/app/api/admin/verify/route.ts` - Approve/reject users
+- `src/app/api/auth/login/route.ts` - Server-side login
+- `src/app/api/auth/logout/route.ts` - Logout endpoint
+- `src/lib/email.ts` - Email utility and templates
+- `src/proxy.ts` - Renamed from middleware.ts
+- `scripts/create-admin.ts` - Admin user creation script
+
+#### Environment Variables Added
+```env
+# Email Service
+GMAIL_USER="your-gmail@gmail.com"
+GMAIL_APP_PASSWORD="your-16-char-app-password"
+
+# Admin Panel
+ADMIN_SECRET_PATH="admin"
+NEXT_PUBLIC_ADMIN_SECRET_PATH="admin"
+```
+
+#### Dependencies Added
+- `nodemailer` - Email sending
+- `@types/nodemailer` - TypeScript types
+- `tsx` - TypeScript script execution
+
+#### Security Enhancements
+- Admin path configurable via environment variables
+- Role verification in middleware
+- Service role key for admin operations
+- Email failures don't break registration flow
+
+### 2025-11-30 - Post-Login Dashboards & Critical Security Fixes
+
+#### Student & Tutor Dashboards
+- **Student Dashboard** (`/dashboard/student`)
+  - Profile information display (name, phone, grade, subjects)
+  - Verification status with color-coded badges
+  - Admin notes display for rejected applications
+  - Connection requests tracking with tutors
+  - Quick action buttons (browse tutors when approved)
+  - Logout functionality
+
+- **Tutor Dashboard** (`/dashboard/tutor`)
+  - Profile information display (name, phone, education, subjects, bio)
+  - Verification status with color-coded badges
+  - Admin notes display for rejected applications
+  - Incoming connection requests from students
+  - Accept/decline functionality for pending requests
+  - Quick action buttons (edit profile, update availability)
+  - Logout functionality
+
+#### API Routes Created
+- `GET /api/student/profile` - Fetch student profile and connection requests
+- `GET /api/tutor/profile` - Fetch tutor profile and incoming requests
+- `POST /api/tutor/connection` - Accept or decline connection requests
+- `POST /api/documents/signed-url` - Generate signed URLs for R2 document viewing
+
+#### Authentication & Login Improvements
+- **Auto-confirm Emails**
+  - Updated student/tutor registration to auto-confirm emails (`email_confirm: true`)
+  - Admin approval serves as the primary verification step
+  - Removes redundant email confirmation requirement
+
+- **Email Confirmation Script**
+  - Created `scripts/confirm-user-email.ts` for manually confirming existing users
+  - Command: `npm run confirm-email <email>`
+  - Useful for migrating existing unconfirmed users
+
+- **Login Flow Fixes**
+  - Fixed login API to properly set session cookies in HTTP response
+  - Fixed redirect logic to prevent redirecting to home page
+  - Role-based redirects: ADMIN → `/admin`, STUDENT → `/dashboard/student`, TUTOR → `/dashboard/tutor`
+  - Improved redirect parameter handling (excludes `/` and `/login`)
+
+#### R2 Document Viewing Fix
+- **Fixed Cloudflare R2 Signed URLs**
+  - Changed `getSignedR2Url()` from using `PutObjectCommand` to `GetObjectCommand`
+  - Added `POST /api/documents/signed-url` endpoint for generating temporary access URLs
+  - Updated admin panel to use signed URLs instead of direct document links
+  - Documents now open correctly in new tabs (PDF, images, etc.)
+  - Signed URLs valid for 1 hour (3600 seconds)
+
+#### Critical Security Fixes - Multi-Layer Protection
+**CRITICAL VULNERABILITY FIXED:** Non-admin users could access admin panel
+
+- **Layer 1: Enhanced Middleware Protection** (`src/proxy.ts`)
+  - Protects both `/admin` pages AND `/api/admin/*` API routes
+  - Role-based redirects for unauthorized access attempts
+  - Dashboard cross-access protection (students can't access tutor dashboard and vice versa)
+  - Admins redirected to admin panel if they try to access user dashboards
+
+- **Layer 2: Server-Side Layout Protection** (`src/app/admin/layout.tsx`)
+  - Added role verification directly in admin layout component
+  - Server-side check before rendering ANY admin page
+  - Automatic redirect to appropriate dashboard based on user role
+  - Defense-in-depth approach ensures security even if middleware fails
+
+- **Layer 3: API Route Protection** (Already existed)
+  - All admin API routes verify user role (ADMIN only)
+  - Returns 403 Forbidden for non-admin users
+  - Protected routes: `/api/admin/verifications`, `/api/admin/verify`
+
+#### Files Created/Modified
+- `src/app/dashboard/student/page.tsx` - Student dashboard page
+- `src/app/dashboard/tutor/page.tsx` - Tutor dashboard page
+- `src/app/api/student/profile/route.ts` - Student profile API
+- `src/app/api/tutor/profile/route.ts` - Tutor profile API
+- `src/app/api/tutor/connection/route.ts` - Connection management API
+- `src/app/api/documents/signed-url/route.ts` - R2 signed URL generation
+- `scripts/confirm-user-email.ts` - Email confirmation utility script
+- `src/lib/r2.ts` - Fixed `getSignedR2Url()` function
+- `src/app/api/auth/login/route.ts` - Fixed cookie handling in response
+- `src/app/login/page.tsx` - Fixed redirect logic
+- `src/proxy.ts` - Enhanced multi-route protection
+- `src/app/admin/layout.tsx` - Added role verification
+
+#### Security Enhancements Summary
+- ✅ Multi-layer admin panel protection (middleware + layout + API)
+- ✅ Dashboard cross-access prevention
+- ✅ Proper session cookie management
+- ✅ Auto-email confirmation for streamlined onboarding
+- ✅ Secure document access with time-limited signed URLs
+- ✅ Role-based access control throughout the application
+
+#### Bug Fixes
+- Fixed login redirect defaulting to `/` instead of role-specific dashboard
+- Fixed R2 document viewing returning internal errors
+- Fixed session cookies not being set in login response
+- Fixed email confirmation blocking legitimate users
+- Fixed critical security vulnerability allowing unauthorized admin access
+
 ---
-**Last Updated:** 2025-11-29
-**Version:** 2.0.0
+**Last Updated:** 2025-11-30
+**Version:** 2.2.0

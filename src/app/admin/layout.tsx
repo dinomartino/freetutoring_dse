@@ -29,6 +29,24 @@ export default async function AdminLayout({
     redirect('/login?redirect=/admin');
   }
 
+  // Check if user has ADMIN role
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profile?.role !== 'ADMIN') {
+    // Not an admin - redirect based on role
+    if (profile?.role === 'STUDENT') {
+      redirect('/dashboard/student');
+    } else if (profile?.role === 'TUTOR') {
+      redirect('/dashboard/tutor');
+    } else {
+      redirect('/?error=unauthorized');
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200">
