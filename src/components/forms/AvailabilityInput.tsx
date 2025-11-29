@@ -87,7 +87,7 @@ export function AvailabilityInput({ value, onChange, error }: AvailabilityInputP
 
   const getTotalSlots = (): number => {
     return Object.values(value).reduce((total, slots) => {
-      return total + slots.filter(slot => slot.start && slot.end).length;
+      return total + slots.filter((slot: any) => slot.start && slot.end).length;
     }, 0);
   };
 

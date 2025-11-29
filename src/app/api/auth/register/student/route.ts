@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { prisma } from '@/lib/prisma';
+import { sendEmail, getStudentRegistrationEmail } from '@/lib/email';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -78,6 +79,15 @@ export async function POST(request: NextRequest) {
           verificationStatus: 'PENDING',
         },
       });
+
+      // 4. Send registration confirmation email
+      try {
+        const emailTemplate = getStudentRegistrationEmail(fullName, email);
+        await sendEmail(emailTemplate);
+      } catch (emailError) {
+        // Log email error but don't fail registration
+        console.error('Failed to send registration email:', emailError);
+      }
 
       return NextResponse.json({
         success: true,

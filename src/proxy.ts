@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const adminPath = process.env.ADMIN_SECRET_PATH || 'admin';
 
   // Check if accessing admin area
