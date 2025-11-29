@@ -1,0 +1,118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User roles enum
+enum UserRole {
+  STUDENT
+  TUTOR
+  ADMIN
+}
+
+// Verification status enum
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Connection status enum
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+// User metadata - extends Supabase auth.users
+// This stores additional user data beyond what Supabase Auth provides
+// The id field references Supabase auth.users(id) via UUID
+model UserProfile {
+  id        String   @id @db.Uuid // References Supabase auth.users(id)
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  studentProfile StudentProfile?
+  tutorProfile   TutorProfile?
+
+  @@map("user_profiles")
+}
+
+// Student profiles
+model StudentProfile {
+  id                      String             @id @default(uuid())
+  userId                  String             @unique @db.Uuid
+  fullName                String
+  phone                   String
+  gradeLevel              String
+  subjectsNeeded          String[]
+  specialNeedsDescription String             @db.Text
+  verificationDocuments   String[]
+  verificationStatus      VerificationStatus @default(PENDING)
+  verificationNotes       String?            @db.Text
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  // Relations
+  user               UserProfile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectionRequests ConnectionRequest[]
+
+  @@index([userId])
+  @@index([verificationStatus])
+  @@map("student_profiles")
+}
+
+// Tutor profiles
+model TutorProfile {
+  id                    String             @id @default(uuid())
+  userId                String             @unique @db.Uuid
+  fullName              String
+  phone                 String
+  educationLevel        String
+  subjectsTaught        String[]
+  bio                   String             @db.Text
+  availability          String             @db.Text
+  photoUrl              String?
+  examResults           Json?              // Open exam results (HKDSE, IGCSE, A-Level, IB, SAT, etc.) as JSON array
+  verificationDocuments String[]
+  verificationStatus    VerificationStatus @default(PENDING)
+  verificationNotes     String?            @db.Text
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  // Relations
+  user               UserProfile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectionRequests ConnectionRequest[]
+
+  @@index([userId])
+  @@index([verificationStatus])
+  @@map("tutor_profiles")
+}
+
+// Connection requests between students and tutors
+model ConnectionRequest {
+  id        String           @id @default(uuid())
+  studentId String
+  tutorId   String
+  status    ConnectionStatus @default(PENDING)
+  message   String           @db.Text
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relations
+  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutor   TutorProfile   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([tutorId])
+  @@index([status])
+  @@map("connection_requests")
+}

@@ -92,3 +92,5 @@ public/uploads/
 *.tmp
 .temp/
 .cache/
+
+/src/generated/prisma
