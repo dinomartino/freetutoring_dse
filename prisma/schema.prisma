@@ -30,6 +30,20 @@ enum ConnectionStatus {
   DECLINED
 }
 
+// Tutoring request status enum
+enum RequestStatus {
+  OPEN       // Accepting applications
+  CLOSED     // No longer accepting applications
+  MATCHED    // Student has chosen a tutor
+}
+
+// Application status enum
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 // User metadata - extends Supabase auth.users
 // This stores additional user data beyond what Supabase Auth provides
 // The id field references Supabase auth.users(id) via UUID
@@ -62,8 +76,9 @@ model StudentProfile {
   updatedAt               DateTime           @updatedAt
 
   // Relations
-  user               UserProfile         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  connectionRequests ConnectionRequest[]
+  user              UserProfile        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tutoringRequests  TutoringRequest[]  // Student creates tutoring requests
+  connectionsAsStudent ConnectionRequest[] @relation("StudentConnections")
 
   @@index([userId])
   @@index([verificationStatus])
@@ -89,27 +104,77 @@ model TutorProfile {
   updatedAt             DateTime           @updatedAt
 
   // Relations
-  user               UserProfile         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  connectionRequests ConnectionRequest[]
+  user              UserProfile         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications      TutorApplication[]  // Tutor applies to student requests
+  connectionsAsTutor ConnectionRequest[] @relation("TutorConnections")
+  selectedForRequests TutoringRequest[] @relation("SelectedTutor") // Requests where this tutor was chosen
 
   @@index([userId])
   @@index([verificationStatus])
   @@map("tutor_profiles")
 }
 
-// Connection requests between students and tutors
-model ConnectionRequest {
-  id        String           @id @default(uuid())
-  studentId String
-  tutorId   String
-  status    ConnectionStatus @default(PENDING)
-  message   String           @db.Text
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+// Tutoring requests - Students post their tutoring needs
+model TutoringRequest {
+  id                      String        @id @default(uuid())
+  studentId               String
+  title                   String        // e.g., "需要中三數學補習"
+  subjects                String[]      // Subjects needed
+  gradeLevel              String        // Student's grade level
+  description             String        @db.Text // Detailed description of needs
+  preferredSchedule       String?       @db.Text // JSON - preferred days/times
+  status                  RequestStatus @default(OPEN)
+  selectedTutorId         String?       // Tutor chosen by student (if MATCHED)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
   // Relations
-  student StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  tutor   TutorProfile   @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  student       StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  applications  TutorApplication[] // Tutors who applied
+  selectedTutor TutorProfile?      @relation("SelectedTutor", fields: [selectedTutorId], references: [id])
+
+  @@index([studentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("tutoring_requests")
+}
+
+// Tutor applications - Tutors apply to student requests
+model TutorApplication {
+  id                String            @id @default(uuid())
+  requestId         String
+  tutorId           String
+  message           String            @db.Text // Why they're a good fit
+  proposedSchedule  String?           @db.Text // JSON - when they're available
+  status            ApplicationStatus @default(PENDING)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  request TutoringRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  tutor   TutorProfile    @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, tutorId]) // One application per tutor per request
+  @@index([requestId])
+  @@index([tutorId])
+  @@index([status])
+  @@map("tutor_applications")
+}
+
+// Active connections - When student accepts a tutor (final pairing)
+model ConnectionRequest {
+  id                String           @id @default(uuid())
+  studentId         String
+  tutorId           String
+  tutoringRequestId String?          // Link to original request (optional)
+  status            ConnectionStatus @default(PENDING)
+  notes             String?          @db.Text
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  student StudentProfile @relation("StudentConnections", fields: [studentId], references: [id], onDelete: Cascade)
+  tutor   TutorProfile   @relation("TutorConnections", fields: [tutorId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([tutorId])

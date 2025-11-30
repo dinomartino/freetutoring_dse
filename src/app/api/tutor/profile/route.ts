@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           status: true,
-          message: true,
+          notes: true,
           createdAt: true,
           student: {
             select: {
